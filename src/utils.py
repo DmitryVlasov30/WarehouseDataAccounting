@@ -55,3 +55,54 @@ class ParsePDFTable:
         #
         #     print(*data, sep="\n")
         #     print("_"*50)
+
+
+class Comparison:
+    def __init__(self, path_first_table, path_second_table, csv_path_file):
+        self.path_first_table = path_first_table
+        self.path_second_table = path_second_table
+        self.csv_path_file = csv_path_file
+
+    def get_tables(self) -> tuple:
+        df_first_table = pd.read_excel(self.path_first_table)
+        df_second_table = pd.read_excel(self.path_second_table)
+
+        warehouse_table_data, accounting_table = {}, {}
+        for warehouse_data in df_first_table:
+            warehouse_table_data[warehouse_data[0]] = warehouse_data[1:]
+
+        for accounting_data in df_second_table:
+            accounting_table[accounting_data[0]] = accounting_data[1:]
+
+        return warehouse_table_data, accounting_table
+
+    def comparison_tables(self) -> dict:
+        warehouse_table_data, accounting_table = self.get_tables()
+        mismatch_elems = set()
+        result = {}
+
+        for name, data in warehouse_table_data.items():
+            if name not in accounting_table or accounting_table[name] != data:
+                mismatch_elems.add(name)
+
+        for name, data in accounting_table.items():
+            if name not in warehouse_table_data or warehouse_table_data[name] != data:
+                mismatch_elems.add(name)
+
+        for name in mismatch_elems:
+            result[name] = [
+                warehouse_table_data.get(name, "Not found"),
+                accounting_table.get(name, "Not found")
+            ]
+
+        return result
+
+
+def main():
+    pass
+
+
+if __name__ == '__main__':
+    main()
+
+
