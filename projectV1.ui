@@ -81,6 +81,41 @@
       <attribute name="horizontalHeaderCascadingSectionResizes">
        <bool>false</bool>
       </attribute>
+      <column>
+       <property name="text">
+        <string>номер </string>
+       </property>
+      </column>
+      <column>
+       <property name="text">
+        <string>название  склада</string>
+       </property>
+      </column>
+      <column>
+       <property name="text">
+        <string>ед измерение склада</string>
+       </property>
+      </column>
+      <column>
+       <property name="text">
+        <string>кол во скалада</string>
+       </property>
+      </column>
+      <column>
+       <property name="text">
+        <string>назавание бухг</string>
+       </property>
+      </column>
+      <column>
+       <property name="text">
+        <string>ед измерение бухг</string>
+       </property>
+      </column>
+      <column>
+       <property name="text">
+        <string>кол во бухг </string>
+       </property>
+      </column>
      </widget>
      <widget class="QPushButton" name="Comparison_btn">
       <property name="geometry">
