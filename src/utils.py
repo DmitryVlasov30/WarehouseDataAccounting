@@ -1,5 +1,12 @@
 import pdfplumber
 import pandas as pd
+from pprint import pprint
+from enum import Enum
+
+
+class Result(Enum):
+    success: str = "success"
+    fail: str = "fail"
 
 
 class ParsePDFTable:
@@ -12,23 +19,7 @@ class ParsePDFTable:
         with pdfplumber.open(self.pdf_path) as pdf:
             for page_num, page in enumerate(pdf.pages):
                 page_tables = page.extract_tables()
-
-                for table_num, table in enumerate(page_tables):
-                    if table and len(table) > 1:
-                        df_data = pd.DataFrame(table)
-                        table_name = f"page_{page_num + 1}_table_{table_num + 1}"
-
-                        df_data.attrs['page_number'] = page_num + 1
-                        df_data.attrs['table_number'] = table_num + 1
-                        df_data.attrs['source_file'] = self.pdf_path
-
-                        tables_dict[table_name] = df_data
-
-        # print("-" * 50)
-        # print(str(list(tables_dict.values())[0]))
-        # print("-" * 50)
-
-        return tables_dict
+                pprint(len(page_tables))
 
     def merge_tables(self):
         table_merge = []
@@ -46,15 +37,15 @@ class ParsePDFTable:
                 table_merge[-1] += "\n" + str(table_df)
                 continue
             table_merge.append(str(table_df))
-        #
-        # for el in table_merge:
-        #     elem = el.split("\n")
-        #     data = []
-        #     for line in elem:
-        #         data.append(line.split())
-        #
-        #     print(*data, sep="\n")
-        #     print("_"*50)
+
+        for el in table_merge:
+            elem = el.split("\n")
+            data = []
+            for line in elem:
+                data.append(line.split())
+
+            print(*data, sep="\n")
+            print("_"*50)
 
 
 class Comparison:
@@ -64,15 +55,26 @@ class Comparison:
         self.csv_path_file = csv_path_file
 
     def get_tables(self) -> tuple:
-        df_first_table = pd.read_excel(self.path_first_table)
-        df_second_table = pd.read_excel(self.path_second_table)
+        df_first_table = pd.read_excel(self.path_first_table).values[4:]
+        df_second_table = pd.read_excel(self.path_second_table).values[4:]
 
         warehouse_table_data, accounting_table = {}, {}
         for warehouse_data in df_first_table:
-            warehouse_table_data[warehouse_data[0]] = warehouse_data[1:]
+            warehouse_data = list(warehouse_data)
+            if warehouse_data[1] in warehouse_table_data:
+                warehouse_table_data[warehouse_data[1]][-1] += warehouse_data[-1]
+                continue
+            warehouse_table_data[warehouse_data[1]] = warehouse_data[2:]
 
         for accounting_data in df_second_table:
-            accounting_table[accounting_data[0]] = accounting_data[1:]
+            accounting_data = list(accounting_data)
+            if accounting_data[1] in accounting_table:
+                accounting_table[accounting_data[1]][-1] += accounting_data[-1]
+                continue
+            new_array = [accounting_data[2], accounting_data[4], accounting_data[5]]
+            accounting_table[accounting_data[1]] = new_array
+
+        print(accounting_table)
 
         return warehouse_table_data, accounting_table
 
