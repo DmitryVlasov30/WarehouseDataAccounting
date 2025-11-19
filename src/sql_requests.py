@@ -14,35 +14,44 @@ class Database:
         self.create_table()
 
     def create_table(self):
-        self.cursor.execute("""
+        self.cursor.execute(f"""
              CREATE TABLE IF NOT EXISTS {self.name_table} (
                 "id"	INTEGER NOT NULL UNIQUE,  
-                "full_name"  TEXT NOT NULL,
-                "short_name"  TEXT NOT NULL,
+                "full_unit_name"  TEXT NOT NULL,
+                "short_unit_name"  TEXT NOT NULL,
                 PRIMARY KEY("id" AUTOINCREMENT)
             );
         """)
 
     def get_data(self):
-        return self.cursor.execute(f"""SELECT full_name, short_name FROM {self.name_table}""").fetchall()
+        return self.cursor.execute(f"""SELECT * FROM {self.name_table}""").fetchall()
 
-    def insert_data(self, full_name, short_name) -> Result:
+    def insert_data(self, full_unit, short_unit) -> Result:
         try:
-            self.cursor.execute(f"""INSERT INTO {self.name_table} ({full_name}, {short_name})""")
-            logger.info(f"добавлено сокращение {full_name}, {short_name}")
+            self.cursor.execute(f"""
+                INSERT INTO {self.name_table} 
+                (full_unit_name, short_unit_name) 
+                VALUES (?, ?)
+            """, (full_unit, short_unit))
+
+            self.connection.commit()
+
+            logger.info(f"добавлено сокращение {full_unit}, {short_unit}")
             return Result.success
         except Exception as ex:
-            logger.error(ex)
-            return Result.fail
+            self.connection.rollback()
+            logger.error(f"Ошибка при добавлении данных: {ex}")
+            raise ex
 
     def delete_data(self, full_name, short_name) -> Result:
         try:
             self.cursor.execute(f"""
                 DELETE FROM {self.name_table}
-                WHERE full_name = '{full_name}' AND short_name = '{short_name}'""")
+                WHERE full_unit_name = ? AND short_unit_name = ?""", (full_name, short_name))
             logger.info(f"удалено сокращение {full_name}, {short_name}")
+            self.connection.commit()
             return Result.success
         except Exception as ex:
+            self.connection.rollback()
             logger.error(ex)
             return Result.fail
-
