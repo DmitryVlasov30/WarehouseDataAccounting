@@ -1,7 +1,8 @@
-import pdfplumber
+from PyPDF2 import PdfReader
 import pandas as pd
-from pprint import pprint
 from enum import Enum
+import re
+from csv import writer
 
 
 class Result(Enum):
@@ -10,53 +11,95 @@ class Result(Enum):
 
 
 class ParsePDFTable:
-    def __init__(self, pdf_path):
+    def __init__(self, pdf_path, csv_path, excel_output_path):
         self.pdf_path = pdf_path
+        self.csv_path = csv_path
+        self.excel_output_path = excel_output_path
 
-    def extract_tables(self):
-        tables_dict = {}
+        self.split_number = "1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16"
+        self.russian_al = "абвгдеёжзийклмнопрстуфхцчшщъыьэюя"
 
-        with pdfplumber.open(self.pdf_path) as pdf:
-            for page_num, page in enumerate(pdf.pages):
-                page_tables = page.extract_tables()
-                pprint(len(page_tables))
+    def parse_page_data(self, text) -> list:
+        records = re.split(r'\n(?=\d+~\d+~\d+~\d+\s*/)', text.strip())
 
-    def merge_tables(self):
-        table_merge = []
-        data_tables = list(self.extract_tables().items())
-        for i, elem in enumerate(data_tables):
-            table_df = elem[1]
-            table_name = elem[0]
-            if i == 0:
-                table_merge.append(str(table_df))
-                continue
-            if (data_tables[i - 1][1].attrs["page_number"] != table_df.attrs["page_number"]
-                    and table_df.attrs["table_number"] == 1):
-                print("-" * 50)
-                print(str(table_df.attrs["page_number"]))
-                table_merge[-1] += "\n" + str(table_df)
-                continue
-            table_merge.append(str(table_df))
+        parsed_data = []
+        for record in records:
+            if "Total items released" in record:
+                record = record.split("Total items released")[0].strip()
+            data = record.replace("\n", "").split()
+            released = data[-1]
+            to_be_released = data[-2]
+            name = data[-3]
+            code = data[-4]
+            nomenclature = data[-5]
+            string_info = " ".join([nomenclature, code, name, to_be_released, released])
+            information = ""
+            model = ""
+            if record.split(string_info)[0]:
+                information = record.split(string_info)[0]
+                if information[-1] + information[-2] != "  ":
+                    split_information = information.split()
+                    model = split_information[-1]
+                    information = information.split(model)[0]
+            information = information.strip().replace("\n", "")
 
-        for el in table_merge:
-            elem = el.split("\n")
-            data = []
-            for line in elem:
-                data.append(line.split())
+            idx_sep = -1
+            for idx, char in enumerate(information):
+                if char.lower() in self.russian_al:
+                    idx_sep = idx
+                    break
+            russia = information[idx_sep:]
+            account_id = information.split("/")[0].strip()
+            parsed_data.append({
+                "account": account_id,
+                "info": russia.replace("\n", ""),
+                "model": model,
+                "nomenclature": nomenclature,
+                "code": code,
+                "name": name,
+                "to_be_released": to_be_released,
+                "released": released
+            })
+        return parsed_data
 
-            print(*data, sep="\n")
-            print("_"*50)
+    def parse_pages(self):
+        pages_table = []
+        with open(self.pdf_path, "rb") as pdf_file:
+            reader = PdfReader(pdf_file)
+            for i in range(len(reader.pages)):
+                page = reader.pages[i]
+                info = page.extract_text().split(self.split_number)[1][1:]
+                for item in self.parse_page_data(info):
+                    pages_table.append(item)
+        return pages_table
+
+    @staticmethod
+    def translate_unit(unit):
+        return unit
+
+    def process_info(self):
+        output_data = self.parse_pages()
+        with open(self.csv_path, "w", newline="", encoding="utf-8") as csv_file:
+            writer_info = writer(csv_file)
+            writer_info.writerow(["no", "название", "номер номенклатуры", "единица измерения", "кол-во"])
+            for number, item in enumerate(output_data):
+                unit_name = self.translate_unit(unit=item["name"])
+                writer_info.writerow([number + 1, item["info"], item["nomenclature"], unit_name, item["released"]])
+
+    def transform_pdf_to_excel(self):
+        self.process_info()
+        dataframe = pd.read_csv(self.csv_path)
+        dataframe.to_excel(self.excel_output_path, index=False)
 
 
 class Comparison:
-    def __init__(self, path_first_table, path_second_table, csv_path_file):
+    def __init__(self, path_first_table, path_second_table):
         self.path_first_table = path_first_table
         self.path_second_table = path_second_table
-        self.csv_path_file = csv_path_file
 
     def get_tables(self) -> tuple:
         df_first_table = pd.read_excel(self.path_first_table).values[4:]
-        df_second_table = pd.read_excel(self.path_second_table).values[4:]
+        df_second_table = pd.read_excel(self.path_second_table).values[3:]
 
         warehouse_table_data, accounting_table = {}, {}
         for warehouse_data in df_first_table:
@@ -100,11 +143,6 @@ class Comparison:
         return result
 
 
-def main():
-    pass
-
-
 if __name__ == '__main__':
-    main()
-
+    pass
 
