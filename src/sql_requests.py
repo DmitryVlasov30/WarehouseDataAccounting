@@ -1,5 +1,3 @@
-from utils import Result
-
 from sqlite3 import connect
 from loguru import logger
 
@@ -26,7 +24,7 @@ class Database:
     def get_data(self):
         return self.cursor.execute(f"""SELECT * FROM {self.name_table}""").fetchall()
 
-    def insert_data(self, full_unit, short_unit) -> Result:
+    def insert_data(self, full_unit, short_unit):
         try:
             self.cursor.execute(f"""
                 INSERT INTO {self.name_table} 
@@ -37,21 +35,18 @@ class Database:
             self.connection.commit()
 
             logger.info(f"добавлено сокращение {full_unit}, {short_unit}")
-            return Result.success
         except Exception as ex:
             self.connection.rollback()
             logger.error(f"Ошибка при добавлении данных: {ex}")
             raise ex
 
-    def delete_data(self, full_name, short_name) -> Result:
+    def delete_data(self, full_name, short_name):
         try:
             self.cursor.execute(f"""
                 DELETE FROM {self.name_table}
                 WHERE full_unit_name = ? AND short_unit_name = ?""", (full_name, short_name))
             logger.info(f"удалено сокращение {full_name}, {short_name}")
             self.connection.commit()
-            return Result.success
         except Exception as ex:
             self.connection.rollback()
             logger.error(ex)
-            return Result.fail
