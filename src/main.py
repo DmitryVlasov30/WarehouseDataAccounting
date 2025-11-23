@@ -24,7 +24,6 @@ class MainWindow(QMainWindow):
 
         self.comparison_page = self.Comparison
         self.search_page = self.Search
-        self.analysis_page = self.mesurUnit
 
         self.update_table()
 
@@ -76,11 +75,11 @@ class MainWindow(QMainWindow):
         comp = Comparison(self.path_first_table,
                           self.path_second_table,
                           r"C:\Users\diwex\PycharmProjects\WarehouseDataAccounting\src\output.csv")
-        print(comp.comparison_tables())
+        print(comp.comparison_data())
 
     def add_measurement_unit(self):
-        full_unit = self.comparison_page.findChild(QtWidgets.QLineEdit, "fullInputUnit").text()
-        short_unit = self.comparison_page.findChild(QtWidgets.QLineEdit, "shortInputUnit").text()
+        full_unit = self.comparison_page.findChild(QtWidgets.QLineEdit, "fullInputUnit").text().strip()
+        short_unit = self.comparison_page.findChild(QtWidgets.QLineEdit, "shortInputUnit").text().strip()
         message_answer = self.comparison_page.findChild(QtWidgets.QLabel, "resultMessage")
 
         try:
@@ -100,8 +99,8 @@ class MainWindow(QMainWindow):
         self.update_table()
 
     def delete_measurement_unit(self):
-        full_unit = self.comparison_page.findChild(QtWidgets.QLineEdit, "fullInputUnit").text()
-        short_unit = self.comparison_page.findChild(QtWidgets.QLineEdit, "shortInputUnit").text()
+        full_unit = self.comparison_page.findChild(QtWidgets.QLineEdit, "fullInputUnit").text().strip()
+        short_unit = self.comparison_page.findChild(QtWidgets.QLineEdit, "shortInputUnit").text().strip()
         message_answer = self.comparison_page.findChild(QtWidgets.QLabel, "resultMessage")
 
         try:
