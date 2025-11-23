@@ -4,6 +4,9 @@ from enum import Enum
 import re
 from csv import writer
 
+from config import settings
+from sql_requests import Database
+
 
 class Result(Enum):
     success: str = "success"
@@ -117,11 +120,9 @@ class Comparison:
             new_array = [accounting_data[2], accounting_data[4], accounting_data[5]]
             accounting_table[accounting_data[1]] = new_array
 
-        print(accounting_table)
-
         return warehouse_table_data, accounting_table
 
-    def comparison_tables(self) -> dict:
+    def transformation_tables(self) -> dict:
         warehouse_table_data, accounting_table = self.get_tables()
         mismatch_elems = set()
         result = {}
@@ -141,6 +142,35 @@ class Comparison:
             ]
 
         return result
+
+    def comparison_data(self):
+        tables = self.transformation_tables()
+        mismatch_elems = []
+
+        db = Database(settings.path_sql_database, settings.name_table)
+        swap_data = dict([(data[1], data[2]) for data in db.get_data()])
+
+        for name, data in tables.items():
+            warehouse_data, accounting_data = data
+            if warehouse_data == "Not found":
+                warehouse_table = ["N/A", "N/A", "N/A"]
+                accounting_table = data[1]
+                mismatch_elems.append(accounting_table + warehouse_table)
+                continue
+            if accounting_data == "Not found":
+                accounting_table = ["N/A", "N/A", "N/A"]
+                warehouse_table = data[0]
+                mismatch_elems.append(accounting_table + warehouse_table)
+                continue
+
+            if accounting_data[1].replace(".", "").replace(",", "").strip() in swap_data:
+                accounting_data[1] = swap_data[accounting_data[1]]
+            print(swap_data)
+            print(accounting_data, warehouse_data)
+            if accounting_data != warehouse_data:
+                mismatch_elems.append(accounting_data + warehouse_data)
+                print(1)
+        return mismatch_elems
 
 
 if __name__ == '__main__':
