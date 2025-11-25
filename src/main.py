@@ -1,11 +1,13 @@
 import sys
+import os
 
 from config import settings
 from sql_requests import Database
+from utils import Comparison, ParsePDFTable
 
 from PyQt6 import uic, QtWidgets
 from PyQt6.QtWidgets import QApplication, QMainWindow
-from utils import Comparison
+import shutil
 
 from loguru import logger
 
@@ -21,6 +23,7 @@ class MainWindow(QMainWindow):
 
         self.path_first_table = None
         self.path_second_table = None
+        self.pdf_file = None
 
         self.comparison_page = self.Comparison
         self.search_page = self.Search
@@ -45,25 +48,35 @@ class MainWindow(QMainWindow):
         self.delete_unit_btn = self.comparison_page.findChild(QtWidgets.QPushButton, "DeleteUnitBtn")
         self.delete_unit_btn.clicked.connect(self.delete_measurement_unit)
 
+        self.export_pdf = self.comparison_page.findChild(QtWidgets.QPushButton, "excel_save")
+        self.export_pdf.clicked.connect(self.export_result_excel_table)
+
+        self.import_pdf = self.comparison_page.findChild(QtWidgets.QPushButton, "get_pdf_file")
+        self.import_pdf.clicked.connect(self.get_pdf_data)
+
     def export_comparison_table(self):
         pass
 
     @logger.catch
-    def import_first_table(self):
+    def import_first_table(self, flag):
         self.path_first_table, _ = QtWidgets.QFileDialog.getOpenFileName()
+        if not self.path_first_table:
+            return
         label_first = self.comparison_page.findChild(QtWidgets.QLabel, "first_table")
         label_first.setText("""<html><head/><body><p><span style=' font-size:10pt;
-         font-weight:600;'>Первая таблица: сохранена</span></p></body></html>""")
+         font-weight:600;'>Складская таблица: сохранена</span></p></body></html>""")
 
     @logger.catch
-    def import_second_table(self):
+    def import_second_table(self, flag):
         self.path_second_table, _ = QtWidgets.QFileDialog.getOpenFileName()
+        if not self.path_second_table:
+            return
         label_second = self.comparison_page.findChild(QtWidgets.QLabel, "second_table")
         label_second.setText("""<html><head/><body><p><span style=' font-size:10pt;
-         font-weight:600;'>Вторая таблица: сохранена</span></p></body></html>""")
+         font-weight:600;'>Бухгалтерская таблица: сохранена</span></p></body></html>""")
 
     @logger.catch
-    def comparison_table(self):
+    def comparison_table(self, flag):
         label_error = self.comparison_page.findChild(QtWidgets.QLabel, "error_message")
         if not (self.path_first_table and self.path_second_table):
             label_error.setText("""<html><head/>
@@ -72,12 +85,30 @@ class MainWindow(QMainWindow):
                     """)
             return
 
-        comp = Comparison(self.path_first_table,
-                          self.path_second_table,
-                          r"C:\Users\diwex\PycharmProjects\WarehouseDataAccounting\src\output.csv")
-        print(comp.comparison_data())
+        table = self.comparison_page.findChild(QtWidgets.QTableWidget, "Comparison_result")
 
-    def add_measurement_unit(self):
+        comp = Comparison(self.path_first_table,
+                          self.path_second_table)
+
+        self.path_first_table = None
+        self.path_second_table = None
+
+        data = comp.comparison_data()
+        if not data:
+            table.clearContents()
+
+        table.setRowCount(0)
+        table.setRowCount(len(data))
+        if data:
+            num_cols = len(data[0])
+            table.setColumnCount(num_cols)
+
+        for row, row_data in enumerate(data):
+            for col, value in enumerate(row_data):
+                item = QtWidgets.QTableWidgetItem(str(value))
+                table.setItem(row, col, item)
+
+    def add_measurement_unit(self, flag):
         full_unit = self.comparison_page.findChild(QtWidgets.QLineEdit, "fullInputUnit").text().strip()
         short_unit = self.comparison_page.findChild(QtWidgets.QLineEdit, "shortInputUnit").text().strip()
         message_answer = self.comparison_page.findChild(QtWidgets.QLabel, "resultMessage")
@@ -96,9 +127,12 @@ class MainWindow(QMainWindow):
                         <body><p><span style=' font-size:10pt;
                         font-weight:600;'>Сокращение добавлено</span></p></body></html>""")
 
+        self.comparison_page.findChild(QtWidgets.QLineEdit, "fullInputUnit").clear()
+        self.comparison_page.findChild(QtWidgets.QLineEdit, "shortInputUnit").clear()
+
         self.update_table()
 
-    def delete_measurement_unit(self):
+    def delete_measurement_unit(self, flag):
         full_unit = self.comparison_page.findChild(QtWidgets.QLineEdit, "fullInputUnit").text().strip()
         short_unit = self.comparison_page.findChild(QtWidgets.QLineEdit, "shortInputUnit").text().strip()
         message_answer = self.comparison_page.findChild(QtWidgets.QLabel, "resultMessage")
@@ -116,6 +150,9 @@ class MainWindow(QMainWindow):
         message_answer.setText("""<html><head/>
                         <body><p><span style=' font-size:10pt;
                         font-weight:600;'>Сокращение удалено</span></p></body></html>""")
+
+        self.comparison_page.findChild(QtWidgets.QLineEdit, "fullInputUnit").clear()
+        self.comparison_page.findChild(QtWidgets.QLineEdit, "shortInputUnit").clear()
 
         self.update_table()
 
@@ -144,6 +181,46 @@ class MainWindow(QMainWindow):
 
         except Exception as e:
             print(f"Ошибка при обновлении таблицы: {e}")
+
+    def get_pdf_data(self, flag):
+        try:
+            self.pdf_file, _ = QtWidgets.QFileDialog.getOpenFileName()
+            label_error = self.comparison_page.findChild(QtWidgets.QLabel, "error_message")
+
+            parser = ParsePDFTable(self.pdf_file, settings.csv_path_file, settings.excel_result_file)
+            parser.transform_pdf_to_excel()
+
+            label_error.setText("""<html><head/>
+                        <body><p><span style=' font-size:10pt;
+                        font-weight:600;'>Данные сохранены, можете выгружать данные из номенклатуры</span></p></body></html>
+                    """)
+        except Exception as e:
+            print(e)
+
+    def export_result_excel_table(self, flag):
+        label_error = self.comparison_page.findChild(QtWidgets.QLabel, "error_message")
+        if self.pdf_file is None:
+            label_error.setText("""<html><head/>
+                        <body><p><span style=' font-size:10pt;
+                        font-weight:600;'>Перед выгрузкой данных нужно отправить номенклатуру</span></p></body></html>
+                    """)
+            return
+
+        save_path, _ = QtWidgets.QFileDialog.getSaveFileName()
+        try:
+            save_path = save_path.split("/")
+            name_file = save_path[-1]
+            directory = save_path[:-1]
+
+            directory_excel = "/".join(settings.excel_result_file.split("/")[:-1])
+
+            name_file += ".xlsx"
+            new_path_file = directory_excel + name_file
+            os.rename(settings.excel_result_file, new_path_file)
+            shutil.move(new_path_file, "/".join(directory))
+            self.pdf_file = None
+        except Exception as ex:
+            logger.error(ex)
 
 
 if __name__ == '__main__':
