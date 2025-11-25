@@ -1,3 +1,5 @@
+import csv
+
 from PyPDF2 import PdfReader
 import pandas as pd
 from enum import Enum
@@ -147,27 +149,66 @@ class Comparison:
     def clear_brush(text: str) -> str:
         return text.replace(",", "").replace(".", "").strip()
 
+    @staticmethod
+    def write_excel(data: list[dict]):
+        with open(settings.csv_path_comp, "w", newline="", encoding="utf-8") as csv_file:
+            writer_file = csv.writer(csv_file)
+            writer_file.writerow([
+                "no",
+                "номер"
+                "название бухгалтерское",
+                "единица измерения бухгалтерская",
+                "количество бухгалтерское",
+                "название склада",
+                "единица измерения склада",
+                "количество склада",
+            ])
+            for number, item in enumerate(data):
+                id_item, data = item["id_item"], item["data"]
+
+                writer_file.writerow([
+                    number + 1,
+                    id_item,
+                    data[0],
+                    data[1],
+                    data[2],
+                    data[3],
+                    data[4],
+                    data[5],
+                ])
+
+        dataframe = pd.read_csv(settings.csv_path_comp)
+        dataframe.to_excel(settings.excel_comp_result, index=False)
+
     def comparison_data(self):
         tables = self.transformation_tables()
         mismatch_elems = []
-        not_found_elems = []
 
         db = Database(settings.path_sql_database, settings.name_table)
         swap_data = dict([(self.clear_brush(data[1]), self.clear_brush(data[2])) for data in db.get_data()])
 
         for name, data in tables.items():
             warehouse_data, accounting_data = data
-            if warehouse_data == "Not found":
-                warehouse_table = ["N/A", "N/A", "N/A"]
-                accounting_table = data[1]
-                mismatch_elems.append(accounting_table + warehouse_table)
-                not_found_elems.append([accounting_table + warehouse_table, name])
-                continue
-            if accounting_data == "Not found":
-                accounting_table = ["N/A", "N/A", "N/A"]
-                warehouse_table = data[0]
-                mismatch_elems.append(accounting_table + warehouse_table)
-                not_found_elems.append([accounting_table + warehouse_table, name])
+            if warehouse_data == "Not found" or accounting_data == "Not found":
+                accounting_table, warehouse_table = "", ""
+                if warehouse_data == "Not found":
+                    warehouse_table = ["Not found", "Not found", "Not found"]
+                    accounting_table = data[1]
+
+                    accounting_table = list(map(
+                        lambda el: self.clear_brush(el.lower()) if isinstance(el, str) else el,
+                        accounting_table
+                    ))
+                if accounting_data == "Not found":
+                    warehouse_table = data[0]
+                    accounting_table = ["Not found", "Not found", "Not found"]
+
+                    warehouse_table = list(map(
+                        lambda el: self.clear_brush(el.lower()) if isinstance(el, str) else el,
+                        warehouse_table
+                    ))
+                mismatch_elems.append({"id_item": name, "data": accounting_table + warehouse_table})
+                # not_found_elems.append([accounting_table + warehouse_table, name])
                 continue
 
             if self.clear_brush(accounting_data[1]) in swap_data:
@@ -182,7 +223,10 @@ class Comparison:
                 warehouse_data
             ))
             if accounting_data != warehouse_data:
-                mismatch_elems.append([accounting_data + warehouse_data, name])
+                mismatch_elems.append({"id_item": name, "data": accounting_data + warehouse_data})
+
+        self.write_excel(mismatch_elems)
+
         return mismatch_elems
 
 
