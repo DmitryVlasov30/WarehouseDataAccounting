@@ -143,12 +143,17 @@ class Comparison:
 
         return result
 
+    @staticmethod
+    def clear_brush(text: str) -> str:
+        return text.replace(",", "").replace(".", "").strip()
+
     def comparison_data(self):
         tables = self.transformation_tables()
         mismatch_elems = []
+        not_found_elems = []
 
         db = Database(settings.path_sql_database, settings.name_table)
-        swap_data = dict([(data[1], data[2]) for data in db.get_data()])
+        swap_data = dict([(self.clear_brush(data[1]), self.clear_brush(data[2])) for data in db.get_data()])
 
         for name, data in tables.items():
             warehouse_data, accounting_data = data
@@ -156,23 +161,30 @@ class Comparison:
                 warehouse_table = ["N/A", "N/A", "N/A"]
                 accounting_table = data[1]
                 mismatch_elems.append(accounting_table + warehouse_table)
+                not_found_elems.append([accounting_table + warehouse_table, name])
                 continue
             if accounting_data == "Not found":
                 accounting_table = ["N/A", "N/A", "N/A"]
                 warehouse_table = data[0]
                 mismatch_elems.append(accounting_table + warehouse_table)
+                not_found_elems.append([accounting_table + warehouse_table, name])
                 continue
 
-            if accounting_data[1].replace(".", "").replace(",", "").strip() in swap_data:
-                accounting_data[1] = swap_data[accounting_data[1]]
-            print(swap_data)
-            print(accounting_data, warehouse_data)
+            if self.clear_brush(accounting_data[1]) in swap_data:
+                accounting_data[1] = swap_data[self.clear_brush(accounting_data[1])]
+                warehouse_data[1] = self.clear_brush(warehouse_data[1])
+            accounting_data = list(map(
+                lambda el: self.clear_brush(el.lower()) if isinstance(el, str) else el,
+                accounting_data
+            ))
+            warehouse_data = list(map(
+                lambda el: self.clear_brush(el.lower()) if isinstance(el, str) else el,
+                warehouse_data
+            ))
             if accounting_data != warehouse_data:
-                mismatch_elems.append(accounting_data + warehouse_data)
-                print(1)
+                mismatch_elems.append([accounting_data + warehouse_data, name])
         return mismatch_elems
 
 
 if __name__ == '__main__':
     pass
-
