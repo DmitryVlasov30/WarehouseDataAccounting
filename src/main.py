@@ -30,9 +30,6 @@ class MainWindow(QMainWindow):
 
         self.update_table()
 
-        self.comparison_btn = self.comparison_page.findChild(QtWidgets.QPushButton, "Comparison_btn")
-        self.comparison_btn.clicked.connect(self.export_comparison_table)
-
         self.import_warehouse_btn = self.comparison_page.findChild(QtWidgets.QPushButton, "get_excel_table_1")
         self.import_warehouse_btn.clicked.connect(self.import_first_table)
 
@@ -53,9 +50,6 @@ class MainWindow(QMainWindow):
 
         self.import_pdf = self.comparison_page.findChild(QtWidgets.QPushButton, "get_pdf_file")
         self.import_pdf.clicked.connect(self.get_pdf_data)
-
-    def export_comparison_table(self):
-        pass
 
     @logger.catch
     def import_first_table(self, flag):
@@ -85,6 +79,7 @@ class MainWindow(QMainWindow):
                     """)
             return
 
+        save_path, _ = QtWidgets.QFileDialog.getSaveFileName()
         table = self.comparison_page.findChild(QtWidgets.QTableWidget, "Comparison_result")
 
         comp = Comparison(self.path_first_table,
@@ -107,6 +102,20 @@ class MainWindow(QMainWindow):
             for col, value in enumerate(row_data):
                 item = QtWidgets.QTableWidgetItem(str(value))
                 table.setItem(row, col, item)
+
+        try:
+            save_path = save_path.split("/")
+            name_file = save_path[-1]
+            directory = save_path[:-1]
+
+            directory_excel = "/".join(settings.excel_result_file.split("/")[:-1])
+
+            name_file += ".xlsx"
+            new_path_file = directory_excel + name_file
+            os.rename(settings.excel_comp_result, new_path_file)
+            shutil.move(new_path_file, "/".join(directory))
+        except Exception as ex:
+            logger.error(ex)
 
     def add_measurement_unit(self, flag):
         full_unit = self.comparison_page.findChild(QtWidgets.QLineEdit, "fullInputUnit").text().strip()
