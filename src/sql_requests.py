@@ -92,17 +92,6 @@ class InvoicesDataBase:
             logger.error(f"Ошибка при добавлении данных: {ex}")
             raise ex
 
-    def delete_invoices(self, id_item):
-        try:
-            self.cursor.execute(f"""
-                DELETE FROM {self.name_table}
-                WHERE id_item = ?""", (id_item,))
-            logger.info(f"удалено сокращение {id_item}")
-            self.connection.commit()
-        except Exception as ex:
-            self.connection.rollback()
-            logger.error(ex)
-
 
 if __name__ == '__main__':
     pass
