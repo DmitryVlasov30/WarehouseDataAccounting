@@ -94,11 +94,11 @@ class MainWindow(QMainWindow):
 
         table.setRowCount(0)
         table.setRowCount(len(data))
-        if data:
-            num_cols = len(data[0])
-            table.setColumnCount(num_cols)
 
         for row, row_data in enumerate(data):
+            arr = [row_data["id_item"]]
+            arr += row_data["data"]
+            row_data = arr
             for col, value in enumerate(row_data):
                 item = QtWidgets.QTableWidgetItem(str(value))
                 table.setItem(row, col, item)
