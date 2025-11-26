@@ -2,7 +2,7 @@ import sys
 import os
 
 from config import settings
-from sql_requests import Database
+from sql_requests import Database, InvoicesDataBase
 from utils import Comparison, ParsePDFTable
 
 from PyQt6 import uic, QtWidgets
@@ -29,6 +29,7 @@ class MainWindow(QMainWindow):
         self.search_page = self.Search
 
         self.update_table()
+        self.invoices_update_table()
 
         self.import_warehouse_btn = self.comparison_page.findChild(QtWidgets.QPushButton, "get_excel_table_1")
         self.import_warehouse_btn.clicked.connect(self.import_first_table)
@@ -199,6 +200,8 @@ class MainWindow(QMainWindow):
             parser = ParsePDFTable(self.pdf_file, settings.csv_path_file, settings.excel_result_file)
             parser.transform_pdf_to_excel()
 
+            self.invoices_update_table()
+
             label_error.setText("""<html><head/>
                         <body><p><span style=' font-size:10pt;
                         font-weight:600;'>Данные сохранены, можете выгружать данные из номенклатуры</span></p></body></html>
@@ -230,6 +233,21 @@ class MainWindow(QMainWindow):
             self.pdf_file = None
         except Exception as ex:
             logger.error(ex)
+
+    def invoices_update_table(self):
+        db = InvoicesDataBase(settings.path_sql_database, settings.invoices_table)
+        data = list(map(lambda el: [el[1], el[2], el[3], el[4]], db.get_invoices()))
+
+        table = self.search_page.findChild(QtWidgets.QTableWidget, "result_data")
+        if not data:
+            table.clearContents()
+
+        table.setRowCount(0)
+        table.setRowCount(len(data))
+        for row, row_data in enumerate(data):
+            for col, value in enumerate(row_data):
+                item = QtWidgets.QTableWidgetItem(str(value))
+                table.setItem(row, col, item)
 
 
 if __name__ == '__main__':
