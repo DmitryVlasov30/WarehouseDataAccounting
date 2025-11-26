@@ -7,7 +7,7 @@ import re
 from csv import writer
 
 from config import settings
-from sql_requests import Database
+from sql_requests import Database, InvoicesDataBase
 
 
 class Result(Enum):
@@ -84,11 +84,16 @@ class ParsePDFTable:
 
     def process_info(self):
         output_data = self.parse_pages()
+        db = InvoicesDataBase(settings.path_sql_database, settings.invoices_table)
         with open(self.csv_path, "w", newline="", encoding="utf-8") as csv_file:
             writer_info = writer(csv_file)
             writer_info.writerow(["no", "название", "номер номенклатуры", "единица измерения", "кол-во"])
             for number, item in enumerate(output_data):
                 unit_name = self.translate_unit(unit=item["name"])
+                try:
+                    db.insert_invoices(number + 1, item["info"], unit_name, item["released"])
+                except Exception as ex:
+                    continue
                 writer_info.writerow([number + 1, item["info"], item["nomenclature"], unit_name, item["released"]])
 
     def transform_pdf_to_excel(self):
