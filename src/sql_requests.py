@@ -67,7 +67,7 @@ class InvoicesDataBase:
         self.cursor.execute(f"""
              CREATE TABLE IF NOT EXISTS {self.name_table} (
                 "id"	INTEGER NOT NULL UNIQUE,
-                "id_item" INTEGER NOT NULL UNIQUE,  
+                "id_item" INTEGER NOT NULL,  
                 "name" TEXT NOT NULL,
                 "unit" TEXT NOT NULL,
                 "count" INTEGER NOT NULL,
