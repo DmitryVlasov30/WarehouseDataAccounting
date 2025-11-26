@@ -24,12 +24,19 @@ class MainWindow(QMainWindow):
         self.path_first_table = None
         self.path_second_table = None
         self.pdf_file = None
+        self.mod = 0
 
         self.comparison_page = self.Comparison
         self.search_page = self.Search
 
         self.update_table()
         self.invoices_update_table()
+
+        self.selection_bar = self.search_page.findChild(QtWidgets.QComboBox, "Input_type_data")
+        self.selection_bar.addItem("Название")
+        self.selection_bar.addItem("Ед измерения")
+        self.selection_bar.addItem("кол - во")
+        self.selection_bar.currentIndexChanged.connect(self.setter_mod)
 
         self.import_warehouse_btn = self.comparison_page.findChild(QtWidgets.QPushButton, "get_excel_table_1")
         self.import_warehouse_btn.clicked.connect(self.import_first_table)
@@ -51,6 +58,25 @@ class MainWindow(QMainWindow):
 
         self.import_pdf = self.comparison_page.findChild(QtWidgets.QPushButton, "get_pdf_file")
         self.import_pdf.clicked.connect(self.get_pdf_data)
+
+        self.search_data_btn = self.search_page.findChild(QtWidgets.QPushButton, "get_search_data")
+        self.search_data_btn.clicked.connect(self.search_data_nomenclature)
+
+    def setter_mod(self, index):
+        self.mod = index
+
+    def search_data_nomenclature(self):
+        db = InvoicesDataBase(settings.path_sql_database, settings.invoices_table)
+        data = list(map(lambda el: (el[1], el[2], el[3], el[4]), db.get_invoices()))
+        data_search = self.search_page.findChild(QtWidgets.QLineEdit, "searchData").text().strip()
+        match self.mod:
+            case 0:
+                data = list(filter(lambda el: el[2] == data_search, data))
+            case 1:
+                data = list(filter(lambda el: el[3] == data_search, data))
+            case 2:
+                data = list(filter(lambda el: el[4] == data_search, data))
+        self.invoices_update_table(data)
 
     @logger.catch
     def import_first_table(self, flag):
@@ -234,9 +260,10 @@ class MainWindow(QMainWindow):
         except Exception as ex:
             logger.error(ex)
 
-    def invoices_update_table(self):
-        db = InvoicesDataBase(settings.path_sql_database, settings.invoices_table)
-        data = list(map(lambda el: [el[1], el[2], el[3], el[4]], db.get_invoices()))
+    def invoices_update_table(self, data=None):
+        if data is None:
+            db = InvoicesDataBase(settings.path_sql_database, settings.invoices_table)
+            data = list(map(lambda el: [el[1], el[2], el[3], el[4]], db.get_invoices()))
 
         table = self.search_page.findChild(QtWidgets.QTableWidget, "result_data")
         if not data:
