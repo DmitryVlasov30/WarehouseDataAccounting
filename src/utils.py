@@ -91,7 +91,7 @@ class ParsePDFTable:
             for number, item in enumerate(output_data):
                 unit_name = self.translate_unit(unit=item["name"])
                 try:
-                    db.insert_invoices(number + 1, item["info"], unit_name, item["released"])
+                    db.insert_invoices(item["info"], unit_name, item["released"])
                 except Exception as ex:
                     continue
                 writer_info.writerow([number + 1, item["info"], item["nomenclature"], unit_name, item["released"]])
