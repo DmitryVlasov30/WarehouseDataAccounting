@@ -16,10 +16,13 @@ logger.add(settings.path_log, level="DEBUG")
 
 
 class MainWindow(QMainWindow):
+    """
+    Основной класс с приложением
+    """
     def __init__(self):
         super().__init__()
         uic.loadUi("../projectV1.ui", self)
-        self.setWindowTitle("project 1")
+        self.setWindowTitle("Warehouse Data Accounting")
 
         self.path_first_table = None
         self.path_second_table = None
@@ -66,20 +69,25 @@ class MainWindow(QMainWindow):
         self.mod = index
 
     def search_data_nomenclature(self):
+        """
+        поиск информации из бд накладных по параметрам
+        :return: None
+        """
         db = InvoicesDataBase(settings.path_sql_database, settings.invoices_table)
-        data = list(map(lambda el: (el[1], el[2], el[3], el[4]), db.get_invoices()))
+        data = db.get_invoices()
         data_search = self.search_page.findChild(QtWidgets.QLineEdit, "searchData").text().strip()
         match self.mod:
             case 0:
-                data = list(filter(lambda el: el[2] == data_search, data))
+                data = list(filter(lambda el: el[1] == data_search, data))
             case 1:
-                data = list(filter(lambda el: el[3] == data_search, data))
+                data = list(filter(lambda el: el[2] == data_search, data))
             case 2:
-                data = list(filter(lambda el: el[4] == data_search, data))
+                data = list(filter(lambda el: el[3] == data_search, data))
         self.invoices_update_table(data)
 
     @logger.catch
     def import_first_table(self, flag):
+        """получение складской таблицы"""
         self.path_first_table, _ = QtWidgets.QFileDialog.getOpenFileName()
         if not self.path_first_table:
             return
@@ -89,6 +97,7 @@ class MainWindow(QMainWindow):
 
     @logger.catch
     def import_second_table(self, flag):
+        """получение бухгалтерской таблицы"""
         self.path_second_table, _ = QtWidgets.QFileDialog.getOpenFileName()
         if not self.path_second_table:
             return
@@ -98,6 +107,11 @@ class MainWindow(QMainWindow):
 
     @logger.catch
     def comparison_table(self, flag):
+        """
+        сравнение складской и бухгалтерской таблицы
+        :param flag:
+        :return: None
+        """
         label_error = self.comparison_page.findChild(QtWidgets.QLabel, "error_message")
         if not (self.path_first_table and self.path_second_table):
             label_error.setText("""<html><head/>
@@ -145,6 +159,11 @@ class MainWindow(QMainWindow):
             logger.error(ex)
 
     def add_measurement_unit(self, flag):
+        """
+        получение и добавление данных для сокращения единиц измерения
+        :param flag:
+        :return: None
+        """
         full_unit = self.comparison_page.findChild(QtWidgets.QLineEdit, "fullInputUnit").text().strip()
         short_unit = self.comparison_page.findChild(QtWidgets.QLineEdit, "shortInputUnit").text().strip()
         message_answer = self.comparison_page.findChild(QtWidgets.QLabel, "resultMessage")
@@ -169,6 +188,11 @@ class MainWindow(QMainWindow):
         self.update_table()
 
     def delete_measurement_unit(self, flag):
+        """
+        получение сокращений для удаления сокращения из бд
+        :param flag:
+        :return: None
+        """
         full_unit = self.comparison_page.findChild(QtWidgets.QLineEdit, "fullInputUnit").text().strip()
         short_unit = self.comparison_page.findChild(QtWidgets.QLineEdit, "shortInputUnit").text().strip()
         message_answer = self.comparison_page.findChild(QtWidgets.QLabel, "resultMessage")
@@ -193,6 +217,10 @@ class MainWindow(QMainWindow):
         self.update_table()
 
     def update_table(self):
+        """
+        функция обновляет данные в виджете
+        :return: None
+        """
         try:
             db = Database(settings.path_sql_database, settings.name_table)
             data = list(map(lambda el: list(el), db.get_data()))
@@ -219,6 +247,11 @@ class MainWindow(QMainWindow):
             print(f"Ошибка при обновлении таблицы: {e}")
 
     def get_pdf_data(self, flag):
+        """
+        получения файла с накладной и парсинг из нее данных
+        :param flag:
+        :return: None
+        """
         try:
             self.pdf_file, _ = QtWidgets.QFileDialog.getOpenFileName()
             label_error = self.comparison_page.findChild(QtWidgets.QLabel, "error_message")
@@ -236,6 +269,11 @@ class MainWindow(QMainWindow):
             print(e)
 
     def export_result_excel_table(self, flag):
+        """
+        выгрузка данных о сравнении в виде excel таблицы
+        :param flag:
+        :return: None
+        """
         label_error = self.comparison_page.findChild(QtWidgets.QLabel, "error_message")
         if self.pdf_file is None:
             label_error.setText("""<html><head/>
@@ -261,9 +299,14 @@ class MainWindow(QMainWindow):
             logger.error(ex)
 
     def invoices_update_table(self, data=None):
+        """
+        обновляет данные о накладных в виджете
+        :param data:
+        :return: None
+        """
         if data is None:
             db = InvoicesDataBase(settings.path_sql_database, settings.invoices_table)
-            data = list(map(lambda el: [el[1], el[2], el[3], el[4]], db.get_invoices()))
+            data = list(map(lambda el: [el[1], el[2], el[3]], db.get_invoices()))
 
         table = self.search_page.findChild(QtWidgets.QTableWidget, "result_data")
         if not data:
