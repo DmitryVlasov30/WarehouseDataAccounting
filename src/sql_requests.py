@@ -4,6 +4,9 @@ from config import settings
 
 
 class Database:
+    """
+    База данных для хранения сокращений единиц измерения
+    """
     def __init__(self, database_path, name_table):
         self.database_path = database_path
         self.connection = connect(database_path)
@@ -13,6 +16,10 @@ class Database:
         self.create_table()
 
     def create_table(self):
+        """
+        создает таблицу, если не существует
+        :return: None
+        """
         self.cursor.execute(f"""
              CREATE TABLE IF NOT EXISTS {self.name_table} (
                 "id"	INTEGER NOT NULL UNIQUE,  
@@ -23,9 +30,19 @@ class Database:
         """)
 
     def get_data(self):
+        """
+        возвращает все данные с бд
+        :return: List[Tuple]
+        """
         return self.cursor.execute(f"""SELECT * FROM {self.name_table}""").fetchall()
 
     def insert_data(self, full_unit, short_unit):
+        """
+        добавляет сокращение ед измерения в бд
+        :param full_unit:  str
+        :param short_unit: str
+        :return: None
+        """
         try:
             self.cursor.execute(f"""
                 INSERT INTO {self.name_table} 
@@ -42,6 +59,12 @@ class Database:
             raise ex
 
     def delete_data(self, full_name, short_name):
+        """
+        удаляет сокращение из бд
+        :param full_name: str
+        :param short_name: str
+        :return: None
+        """
         try:
             self.cursor.execute(f"""
                 DELETE FROM {self.name_table}
@@ -54,6 +77,9 @@ class Database:
 
 
 class InvoicesDataBase:
+    """
+    База данных для хранения накладных
+    """
     def __init__(self, database_path, name_table):
         self.database_path = database_path
         self.name_table = name_table
@@ -64,10 +90,13 @@ class InvoicesDataBase:
         self.create_table()
 
     def create_table(self):
+        """
+        создание бд
+        :return: None
+        """
         self.cursor.execute(f"""
              CREATE TABLE IF NOT EXISTS {self.name_table} (
                 "id"	INTEGER NOT NULL UNIQUE,
-                "id_item" INTEGER NOT NULL,  
                 "name" TEXT NOT NULL,
                 "unit" TEXT NOT NULL,
                 "count" INTEGER NOT NULL,
@@ -76,17 +105,28 @@ class InvoicesDataBase:
         """)
 
     def get_invoices(self):
+        """
+        получение данных из бд
+        :return: List[Tuple]
+        """
         return self.cursor.execute(f"""SELECT * FROM {self.name_table}""").fetchall()
 
-    def insert_invoices(self, id_item, name, unit, count):
+    def insert_invoices(self, name, unit, count):
+        """
+        добавляет новый элемент из накладной
+        :param name: str
+        :param unit: str
+        :param count: int | str
+        :return: None
+        """
         try:
             self.cursor.execute(f"""
                 INSERT INTO {self.name_table} 
-                (id_item, name, unit, count) 
-                VALUES  (?, ?, ?, ?)
-            """, (id_item, name, unit, count))
+                (name, unit, count) 
+                VALUES  (?, ?, ?)
+            """, (name, unit, count))
             self.connection.commit()
-            logger.info(f"Добавлен элемент {id_item}, {name}, {unit}, {count}")
+            logger.info(f"Добавлен элемент {name}, {unit}, {count}")
         except Exception as ex:
             self.connection.rollback()
             logger.error(f"Ошибка при добавлении данных: {ex}")
