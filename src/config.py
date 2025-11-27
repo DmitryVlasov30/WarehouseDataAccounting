@@ -5,6 +5,8 @@ class Settings:
     invoices_table: str = "Название таблиц для номенклатур"
     csv_path_file: str = r"Путь до csv файла для сохранения результата парсинга номенклатур"
     excel_result_file: str = r"Путь до excel файла с результатом номенклатур"
+    csv_path_comp: str = r"путь до файла куда будут сохранятся результаты сравнения"
+    excel_comp_result: str = "путь до excel файла, где будет хранится сравнения"
 
 
 settings = Settings()
