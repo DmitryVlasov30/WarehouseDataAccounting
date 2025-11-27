@@ -1,13 +1,13 @@
-import csv
-
 from PyPDF2 import PdfReader
 import pandas as pd
 from enum import Enum
+import csv
 import re
-from csv import writer
 
 from config import settings
 from sql_requests import Database, InvoicesDataBase
+
+from loguru import logger
 
 
 class Result(Enum):
@@ -16,6 +16,9 @@ class Result(Enum):
 
 
 class ParsePDFTable:
+    """
+    класс для парсинга накладных в виде PDF файлов
+    """
     def __init__(self, pdf_path, csv_path, excel_output_path):
         self.pdf_path = pdf_path
         self.csv_path = csv_path
@@ -25,6 +28,11 @@ class ParsePDFTable:
         self.russian_al = "абвгдеёжзийклмнопрстуфхцчшщъыьэюя"
 
     def parse_page_data(self, text) -> list:
+        """
+        основная функция, собирающая данные и формирует список со словарем о каждой колонке
+        :param text: str
+        :return: List[dict]
+        """
         records = re.split(r'\n(?=\d+~\d+~\d+~\d+\s*/)', text.strip())
 
         parsed_data = []
@@ -67,7 +75,11 @@ class ParsePDFTable:
             })
         return parsed_data
 
-    def parse_pages(self):
+    def parse_pages(self) -> list:
+        """
+        вытаскивает и формирует окончательный вид элементов из накладной
+        :return: List
+        """
         pages_table = []
         with open(self.pdf_path, "rb") as pdf_file:
             reader = PdfReader(pdf_file)
@@ -83,31 +95,49 @@ class ParsePDFTable:
         return unit
 
     def process_info(self):
+        """
+        формирует csv файл c собранными данными
+        :return: None
+        """
         output_data = self.parse_pages()
         db = InvoicesDataBase(settings.path_sql_database, settings.invoices_table)
         with open(self.csv_path, "w", newline="", encoding="utf-8") as csv_file:
-            writer_info = writer(csv_file)
+            writer_info = csv.writer(csv_file)
             writer_info.writerow(["no", "название", "номер номенклатуры", "единица измерения", "кол-во"])
             for number, item in enumerate(output_data):
                 unit_name = self.translate_unit(unit=item["name"])
                 try:
                     db.insert_invoices(item["info"], unit_name, item["released"])
                 except Exception as ex:
+                    logger.error(ex)
                     continue
                 writer_info.writerow([number + 1, item["info"], item["nomenclature"], unit_name, item["released"]])
+        logger.info(f"сформирован csv файл {self.csv_path}")
 
     def transform_pdf_to_excel(self):
+        """
+        преобразует csv файл в excel
+        :return:  None
+        """
         self.process_info()
         dataframe = pd.read_csv(self.csv_path)
         dataframe.to_excel(self.excel_output_path, index=False)
+        logger.info(f"Сформирован итоговый файл {self.excel_output_path}")
 
 
 class Comparison:
+    """
+    класс для сравнения складских и бухгалтерских данных
+    """
     def __init__(self, path_first_table, path_second_table):
         self.path_first_table = path_first_table
         self.path_second_table = path_second_table
 
     def get_tables(self) -> tuple:
+        """
+        получение и формирование данных о складских и бухгалтерских данных
+        :return: Tuple
+        """
         df_first_table = pd.read_excel(self.path_first_table).values[4:]
         df_second_table = pd.read_excel(self.path_second_table).values[3:]
 
@@ -130,6 +160,10 @@ class Comparison:
         return warehouse_table_data, accounting_table
 
     def transformation_tables(self) -> dict:
+        """
+        собирает данные и объединяет их по id, а также находит несовпадения
+        :return: Dict
+        """
         warehouse_table_data, accounting_table = self.get_tables()
         mismatch_elems = set()
         result = {}
@@ -156,6 +190,11 @@ class Comparison:
 
     @staticmethod
     def write_excel(data: list[dict]):
+        """
+        формирование данных в виде csv файла
+        :param data: List[dict]
+        :return: None
+        """
         with open(settings.csv_path_comp, "w", newline="", encoding="utf-8") as csv_file:
             writer_file = csv.writer(csv_file)
             writer_file.writerow([
@@ -185,7 +224,11 @@ class Comparison:
         dataframe = pd.read_csv(settings.csv_path_comp)
         dataframe.to_excel(settings.excel_comp_result, index=False)
 
-    def comparison_data(self):
+    def comparison_data(self) -> list:
+        """
+        окончательное сравнение данных и формирование массива с итоговым сравнением
+        :return: list[dict]
+        """
         tables = self.transformation_tables()
         mismatch_elems = []
 
